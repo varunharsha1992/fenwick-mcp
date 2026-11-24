@@ -1,0 +1,8 @@
+{
+  "thread_id": "thr-unknown",
+  "ticket": "UNKNOWN",
+  "from": "someone@vendor.example",
+  "subject": "auth-gateway outage",
+  "received_at": "2026-11-23T12:11:00Z",
+  "body": "what did we conclude about the March auth-gateway outage"
+}

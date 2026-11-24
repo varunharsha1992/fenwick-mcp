@@ -1,0 +1,7 @@
+employee_id,name,team,title,clearance,can_page
+E1001,Asha Verma,payments,Staff Site Reliability Engineer,restricted,yes
+E1002,Daniel Okafor,checkout,Software Engineer,internal,yes
+E1003,Mei Tanaka,security,Security Engineer,restricted,yes
+E1004,Tomas Rivera,revenue-platform,Engineering Manager,internal,yes
+E1005,Lena Fischer,identity-platform,Software Engineer,internal,yes
+E1006,Sam Carter,vendor-qa,Contract QA Analyst,public,no

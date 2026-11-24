@@ -1,0 +1,8 @@
+{
+  "thread_id": "thr-b",
+  "ticket": "B",
+  "from": "daniel.okafor@fenwick.example",
+  "subject": "March outage question",
+  "received_at": "2026-11-23T10:02:00Z",
+  "body": "what did we conclude about the March auth-gateway outage"
+}

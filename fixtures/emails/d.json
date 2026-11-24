@@ -1,0 +1,8 @@
+{
+  "thread_id": "thr-d",
+  "ticket": "D",
+  "from": "lena.fischer@fenwick.example",
+  "subject": "checkout latency",
+  "received_at": "2026-11-23T14:24:00Z",
+  "body": "checkout latency spiking again since about 14:20"
+}

@@ -1,0 +1,5 @@
+service,primary_employee_id,secondary_employee_id,as_of
+payments-api,E1001,E1004,2026-11-23T14:30:00Z
+checkout,E1002,E1001,2026-11-23T14:30:00Z
+auth-gateway,E1005,E1003,2026-11-23T14:30:00Z
+billing-sync,E1004,E1002,2026-11-23T14:30:00Z

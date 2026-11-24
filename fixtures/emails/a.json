@@ -1,0 +1,8 @@
+{
+  "thread_id": "thr-a",
+  "ticket": "A",
+  "from": "daniel.okafor@fenwick.example",
+  "subject": "payments-api canary",
+  "received_at": "2026-11-23T14:21:00Z",
+  "body": "payments-api canary is throwing elevated 5xxs after today's deploy, what should I do"
+}
