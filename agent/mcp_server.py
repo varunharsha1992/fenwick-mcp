@@ -1,65 +1,54 @@
-"""The MCP server: Fenwick's on-call scheduler and a SIMULATED inbox, over the Model Context Protocol.
+"""Our MCP server: the on-call rota and a SIMULATED inbox. Any MCP client can list these tools and call them.
 
-Transport: stdio. The client starts this file as a subprocess and talks to it over stdin/stdout.
-That is the right fit for a local teaching demo: no port, no auth, nothing to deploy.
-Because stdout IS the protocol stream, every log line goes to stderr (agent.toolkit.logger does that).
-
-    python -m agent.mcp_server          started for you by agent.mcp_client.connect_mcp()
-
-Each tool body is the same Python function a local tool would use (agent/tools.py), run through
-the same validate-and-structured-error helper (agent.toolkit.execute).
+The name, the arguments and the docstring of each function become the tool the model sees.
+The agent never imports this file. FastMCP Cloud runs it, and the agent reaches it by URL.
 """
-import json
-import time
-from typing import Annotated
+import sys
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
-from pydantic import Field
+from mcp.server.mcpserver.exceptions import ToolError          # an error whose text the model may read
 
-from agent.toolkit import Tool, execute, log, redact, truncate
-from agent.tools import CREATE_DRAFT, GET_ONCALL, GET_THREAD, SEARCH_THREADS
+from agent.tools import all_emails, fence, rows
 
-mcp = MCPServer("fenwick", log_level="WARNING")
-
-
-def serve(tool: Tool, args: dict, ctx: Context) -> str:
-    """Run one tool for one MCP request and log it. A bad call becomes a structured error; the server stays up."""
-    started = time.perf_counter()
-    meta = ctx.request_context.meta or {}                 # the client sends the run's ids along with the call
-    result = execute(tool, args)
-    log("mcp_request", request_id=ctx.request_id, correlation_id=meta.get("correlation_id"),
-        step_id=meta.get("step_id"), tool=tool.name, args=redact(args),
-        duration_ms=round((time.perf_counter() - started) * 1000), ok=result["ok"],
-        error=None if result["ok"] else result["error"]["code"], output=truncate(result))
-    return json.dumps(result, ensure_ascii=False)
+mcp = MCPServer("fenwick", log_level="ERROR")
 
 
-def says(tool: Tool, arg: str) -> Field:
-    """The argument description the model reads, taken from the one place it is written."""
-    return Field(description=tool.parameters["properties"][arg]["description"])
+@mcp.tool()
+def get_oncall(service: str, ctx: Context) -> dict:
+    """Who is on call for a service right now. Always call this; the rota changes constantly."""
+    log(ctx, "get_oncall", service)
+    people = {p["employee_id"]: p for p in rows("identity_directory.csv")}
+    for row in rows("oncall_schedule.csv"):
+        if row["service"] == service.lower():
+            primary, secondary = people[row["primary_employee_id"]], people[row["secondary_employee_id"]]
+            return {"primary": primary["name"], "primary_id": primary["employee_id"], "primary_email": primary["email"],
+                    "secondary": secondary["name"], "as_of": row["as_of"]}
+    raise ToolError(f"no rota for '{service}'")
 
 
-@mcp.tool(name=GET_ONCALL.name, description=GET_ONCALL.description)
-def get_oncall(service: Annotated[str, says(GET_ONCALL, "service")], ctx: Context) -> str:
-    return serve(GET_ONCALL, {"service": service}, ctx)
+@mcp.tool()
+def get_thread(thread_id: str, ctx: Context) -> dict:
+    """Read one email thread from the support inbox."""
+    log(ctx, "get_thread", thread_id)
+    for email in all_emails():
+        if email["thread_id"] == thread_id:
+            return {"from": email["from"], "received_at": email["received_at"], "subject": fence(email["subject"]), "body": fence(email["body"])}
+    raise ToolError(f"no thread '{thread_id}'")
 
 
-@mcp.tool(name=SEARCH_THREADS.name, description=SEARCH_THREADS.description)
-def search_threads(query: Annotated[str, says(SEARCH_THREADS, "query")], ctx: Context) -> str:
-    return serve(SEARCH_THREADS, {"query": query}, ctx)
+@mcp.tool()
+def create_draft(to: str, subject: str, body: str, ctx: Context) -> dict:
+    """Write an email draft for a person to review. It is NOT sent. Separate several addresses with commas."""
+    log(ctx, "create_draft", to)
+    return {"status": "draft, not sent", "to": to, "subject": subject, "body": body}
 
 
-@mcp.tool(name=GET_THREAD.name, description=GET_THREAD.description)
-def get_thread(thread_id: Annotated[str, says(GET_THREAD, "thread_id")], ctx: Context) -> str:
-    return serve(GET_THREAD, {"thread_id": thread_id}, ctx)
-
-
-@mcp.tool(name=CREATE_DRAFT.name, description=CREATE_DRAFT.description)
-def create_draft(to: Annotated[str, says(CREATE_DRAFT, "to")], subject: Annotated[str, says(CREATE_DRAFT, "subject")],
-                 body: Annotated[str, says(CREATE_DRAFT, "body")], ctx: Context) -> str:
-    return serve(CREATE_DRAFT, {"to": to, "subject": subject, "body": body}, ctx)
+def log(ctx, tool, what):
+    """One line per request, with the id the agent sent along. The agent logged the same id when it sent the call."""
+    sent = ctx.request_context.meta or {}
+    print(f"server got {tool}({what}) call_id={sent.get('call_id')}", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":
-    mcp.run()          # stdio
+    mcp.run("streamable-http")          # only if hosting is down: http://127.0.0.1:8000/mcp
