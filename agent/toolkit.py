@@ -42,6 +42,8 @@ def truncate(value: Any, limit: int = LOG_TEXT_LIMIT) -> str:
 
 def redact(args: dict) -> dict:
     """Arguments as they may appear in a log: secrets masked, long values cut."""
+    if not isinstance(args, dict):
+        return {"not_an_object": truncate(args, 120)}
     return {k: "***" if SECRET_KEYS.search(k) else truncate(v, 120) for k, v in args.items()}
 
 
